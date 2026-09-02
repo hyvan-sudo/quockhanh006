@@ -846,14 +846,66 @@ export async function triggerGachaSpinRealtime(
 }
 
 /**
+ * Initialize or Go To Gacha Session (Host or Final Ranking Navigation)
+ * Ensures non-hosts are sorted by score descending, top non-host gets 2 spins,
+ * remaining non-hosts get 1 spin, and Host gets 0 spins.
+ */
+export async function initializeGachaSessionRealtime(
+  players: Player[],
+  wonRewards: WonReward[] = []
+): Promise<void> {
+  const gachaInit = initializeGachaState(players);
+
+  if (db && isFirebaseConfigured) {
+    const gameRef = ref(db, 'game');
+    const updates: Record<string, any> = {
+      status: 'gacha',
+      'gacha/phase': 'idle',
+      'gacha/currentGachaPlayerId': gachaInit.firstPlayerId,
+      'gacha/gachaQueue': gachaInit.gachaQueue,
+      'gacha/playerSpins': gachaInit.playerSpins,
+      'gacha/activeSpin': null,
+      'gacha/currentResult': null,
+      'gacha/wonRewards': wonRewards,
+    };
+    await update(gameRef, updates);
+    return;
+  }
+
+  // Local fallback
+  const localState = getStoredGameState();
+  const updatedState: GlobalGameState = {
+    ...localState,
+    status: 'gacha',
+    gacha: {
+      phase: 'idle',
+      currentGachaPlayerId: gachaInit.firstPlayerId,
+      gachaQueue: gachaInit.gachaQueue,
+      playerSpins: gachaInit.playerSpins,
+      activeSpin: null,
+      currentResult: null,
+      wonRewards,
+    },
+  };
+  saveLocalFallbackState(updatedState);
+}
+
+/**
  * Advance turn to next non-host player in Gacha queue
  */
 export async function advanceGachaTurnRealtime(
-  gachaState: RoomGachaState
+  gachaState: RoomGachaState,
+  players: Player[] = []
 ): Promise<void> {
-  const queue = gachaState.gachaQueue || [];
-  const currentIndex = queue.indexOf(gachaState.currentGachaPlayerId || '');
-  const nextIndex = currentIndex + 1;
+  let queue = gachaState.gachaQueue || [];
+  if (queue.length === 0 && players.length > 0) {
+    const nonHosts = players.filter((p) => !p.isHost).sort((a, b) => b.score - a.score);
+    queue = nonHosts.map((p) => p.id);
+  }
+
+  const currentId = gachaState.currentGachaPlayerId || (queue[0] ?? '');
+  const currentIndex = queue.indexOf(currentId);
+  const nextIndex = currentIndex >= 0 ? currentIndex + 1 : 1;
 
   if (nextIndex < queue.length) {
     const nextPlayerId = queue[nextIndex];

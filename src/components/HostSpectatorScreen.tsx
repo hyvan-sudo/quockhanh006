@@ -225,6 +225,25 @@ export const HostSpectatorScreen: React.FC<HostSpectatorScreenProps> = ({
         </div>
       </div>
 
+      {/* Development Debug Information Panel */}
+      <div
+        id="host-gacha-debug-panel"
+        className="mb-6 p-3 bg-[#141414] text-[#FAF6EE] border-2 border-[#141414] font-mono text-xs text-left space-y-1 shadow-md"
+      >
+        <div className="flex items-center justify-between border-b border-[#FAF6EE]/20 pb-1 font-bold text-[10px] text-[#F9D64B] uppercase tracking-wider">
+          <span>GACHA HOST SPECTATOR DEBUG</span>
+          <span className="text-[#F9D64B]">
+            ⚪ HOST KHÔNG THAM GIA QUAY (MÀN HÌNH QUAN SÁT)
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] pt-1">
+          <div>Current player: <span className="text-[#F9D64B] font-bold">{userPlayer.id}</span> ({userPlayer.name})</div>
+          <div>Current gacha player: <span className="text-[#F9D64B] font-bold">{gachaState.currentGachaPlayerId || nonHostPlayers[0]?.id || 'null'}</span> ({activePlayer?.name || 'N/A'})</div>
+          <div>isHost: <span className="text-[#C02026] font-bold">true</span></div>
+          <div>spinsRemaining: <span className="text-[#F9D64B] font-bold">0 (Host)</span> | Active Player Spins: <span className="text-[#F9D64B] font-bold">{activePlayerSpins}</span></div>
+        </div>
+      </div>
+
       {/* Main Grid: Left is Big Stage (Wheel + Announcer), Right is Live Results History */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         

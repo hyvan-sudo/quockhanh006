@@ -36,11 +36,22 @@ export const PlayerGachaScreen: React.FC<PlayerGachaScreenProps> = ({
   const NUM_SEGMENTS = 10;
   const SEGMENT_ANGLE = 360 / NUM_SEGMENTS;
 
-  const nonHostPlayers = players.filter((p) => !p.isHost);
-  const activePlayer = players.find((p) => p.id === gachaState.currentGachaPlayerId) || nonHostPlayers[0];
-  const isMyTurn = gachaState.currentGachaPlayerId === userPlayer.id;
-  const myRemainingSpins = gachaState.playerSpins[userPlayer.id] ?? 0;
-  const activePlayerSpins = activePlayer ? (gachaState.playerSpins[activePlayer.id] ?? 0) : 0;
+  const isHost = Boolean(userPlayer.isHost);
+  const nonHostPlayers = players.filter((p) => !p.isHost).sort((a, b) => b.score - a.score);
+  const currentTurnPlayerId = gachaState.currentGachaPlayerId || (nonHostPlayers[0]?.id ?? null);
+  const activePlayer = players.find((p) => p.id === currentTurnPlayerId) || nonHostPlayers[0];
+
+  const isMyTurn = !isHost && Boolean(currentTurnPlayerId) && currentTurnPlayerId === userPlayer.id;
+
+  const myRemainingSpins = gachaState.playerSpins[userPlayer.id] !== undefined
+    ? (gachaState.playerSpins[userPlayer.id] ?? 0)
+    : (isHost ? 0 : (nonHostPlayers[0]?.id === userPlayer.id ? 2 : 1));
+
+  const activePlayerSpins = activePlayer
+    ? (gachaState.playerSpins[activePlayer.id] ?? (activePlayer.id === nonHostPlayers[0]?.id ? 2 : 1))
+    : 0;
+
+  const shouldShowSpinButton = !isHost && isMyTurn && myRemainingSpins > 0;
 
   // Draw canvas wheel
   useEffect(() => {
@@ -221,7 +232,7 @@ export const PlayerGachaScreen: React.FC<PlayerGachaScreenProps> = ({
   return (
     <div id="player-gacha-screen" className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
       {/* Top Bar */}
-      <div className="flex items-center justify-between border-b-2 border-[#141414] pb-3 mb-6">
+      <div className="flex items-center justify-between border-b-2 border-[#141414] pb-3 mb-4">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -255,6 +266,25 @@ export const PlayerGachaScreen: React.FC<PlayerGachaScreenProps> = ({
             <Gift size={13} className="text-[#C02026]" />
             <span>TỦ QUÀ ({gachaState.wonRewards.length})</span>
           </button>
+        </div>
+      </div>
+
+      {/* Development Debug Information Panel */}
+      <div
+        id="gacha-debug-panel"
+        className="mb-4 p-3 bg-[#141414] text-[#FAF6EE] border-2 border-[#141414] font-mono text-xs text-left space-y-1 shadow-md"
+      >
+        <div className="flex items-center justify-between border-b border-[#FAF6EE]/20 pb-1 font-bold text-[10px] text-[#F9D64B] uppercase tracking-wider">
+          <span>GACHA REALTIME DEBUG</span>
+          <span className={shouldShowSpinButton ? 'text-[#38D668]' : 'text-[#F9D64B]'}>
+            {shouldShowSpinButton ? '🟢 NÚT QUAY: HIỂN THỊ [ QUAY → ]' : '⚪ NÚT QUAY: ẨN (CHỜ LƯỢT / QUAN SÁT)'}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] pt-1">
+          <div>Current player: <span className="text-[#F9D64B] font-bold">{userPlayer.id}</span> ({userPlayer.name})</div>
+          <div>Current gacha player: <span className="text-[#F9D64B] font-bold">{currentTurnPlayerId || 'null'}</span> ({activePlayer?.name || 'N/A'})</div>
+          <div>isHost: <span className={isHost ? 'text-[#C02026] font-bold' : 'text-[#38D668] font-bold'}>{String(isHost)}</span></div>
+          <div>spinsRemaining: <span className="text-[#F9D64B] font-bold">{myRemainingSpins}</span></div>
         </div>
       </div>
 
@@ -358,7 +388,7 @@ export const PlayerGachaScreen: React.FC<PlayerGachaScreenProps> = ({
 
         {/* Bottom Interaction Area */}
         <div className="p-6 sm:p-8 bg-[#F2ECE0] flex flex-col items-center">
-          {isMyTurn ? (
+          {shouldShowSpinButton ? (
             <div className="w-full max-w-sm space-y-3">
               <button
                 id="player-spin-button"
@@ -366,24 +396,33 @@ export const PlayerGachaScreen: React.FC<PlayerGachaScreenProps> = ({
                 onClick={handleTriggerSpin}
                 className="w-full bg-[#C02026] text-white py-4 sm:py-5 font-mono text-sm sm:text-base font-bold uppercase tracking-[0.2em] border-2 border-[#141414] hover:bg-[#141414] hover:text-[#FAF6EE] active:translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>{isSpinning ? 'ĐANG QUAY MAY MẮN...' : 'QUAY →'}</span>
+                <span>
+                  {isSpinning
+                    ? 'ĐANG QUAY MAY MẮN...'
+                    : myRemainingSpins === 1 && gachaState.wonRewards.some((r) => r.playerId === userPlayer.id)
+                    ? 'QUAY LẦN NỮA (CÒN 1 LƯỢT) →'
+                    : 'QUAY →'}
+                </span>
               </button>
-
-              {myRemainingSpins === 0 && !isSpinning && (
-                <button
-                  id="finish-turn-button"
-                  onClick={onFinishMyTurn}
-                  className="w-full bg-[#141414] text-[#FAF6EE] py-3 font-mono text-xs font-bold uppercase tracking-wider border-2 border-[#141414] hover:bg-[#C02026] transition-colors cursor-pointer"
-                >
-                  HOÀN TẤT LƯỢT → CHUYỂN NGƯỜI TIẾP THEO
-                </button>
-              )}
+            </div>
+          ) : isMyTurn && myRemainingSpins === 0 && !isSpinning ? (
+            <div className="w-full max-w-sm space-y-3 text-center">
+              <div className="p-3 bg-[#FAF6EE] border border-[#141414] font-mono text-xs font-bold text-[#141414]">
+                BẠN ĐÃ DÙNG HẾT LƯỢT QUAY!
+              </div>
+              <button
+                id="finish-turn-button"
+                onClick={onFinishMyTurn}
+                className="w-full bg-[#141414] text-[#FAF6EE] py-3.5 font-mono text-xs font-bold uppercase tracking-wider border-2 border-[#141414] hover:bg-[#C02026] transition-colors cursor-pointer"
+              >
+                HOÀN TẤT LƯỢT → CHUYỂN NGƯỜI TIẾP THEO
+              </button>
             </div>
           ) : (
             <div className="font-mono text-xs text-[#141414]/70 flex items-center gap-2">
               <User size={13} className="text-[#C02026]" />
               <span>
-                {activePlayer ? `Đang chờ ${activePlayer.name} quay (còn ${activePlayerSpins} lượt)` : 'Đang chờ lượt quay...'}
+                {activePlayer ? `Đang đến lượt ${activePlayer.name} (còn ${activePlayerSpins} lượt)...` : 'Đang chờ lượt quay...'}
               </span>
             </div>
           )}

@@ -32,6 +32,7 @@ import {
   advanceNextRoundOrRankingRealtime,
   triggerGachaSpinRealtime,
   advanceGachaTurnRealtime,
+  initializeGachaSessionRealtime,
   resetGameRealtime,
   setGameStageRealtime,
 } from './services/firebaseGameService';
@@ -199,7 +200,7 @@ export default function App() {
 
   // Advance Gacha turn
   const handleAdvanceGachaTurn = async () => {
-    await advanceGachaTurnRealtime(gameState.gacha);
+    await advanceGachaTurnRealtime(gameState.gacha, enrichedPlayers);
   };
 
   // Host resets game
@@ -211,6 +212,9 @@ export default function App() {
   // Direct stage navigation (for local testing/reviewing)
   const handleStageChange = async (stage: GameStage) => {
     if (userPlayer.isHost) {
+      if (stage === 'gacha' || stage === 'final_ranking') {
+        await initializeGachaSessionRealtime(enrichedPlayers, gameState.gacha?.wonRewards || []);
+      }
       await setGameStageRealtime(stage);
     }
   };
@@ -386,7 +390,14 @@ export default function App() {
                 totalRounds={totalRoundsCount}
                 players={enrichedPlayers}
                 onNextRound={handleNextRound}
-                onGoToFinalRanking={() => setGameStageRealtime('final_ranking')}
+                onGoToFinalRanking={() =>
+                  advanceNextRoundOrRankingRealtime(
+                    totalRoundsCount - 1,
+                    totalRoundsCount,
+                    enrichedPlayers,
+                    gameState.gacha?.wonRewards || []
+                  )
+                }
               />
             </motion.div>
           )}
@@ -401,7 +412,12 @@ export default function App() {
             >
               <FinalRankingScreen
                 players={enrichedPlayers}
-                onGoToGacha={() => setGameStageRealtime('gacha')}
+                onGoToGacha={() =>
+                  initializeGachaSessionRealtime(
+                    enrichedPlayers,
+                    gameState.gacha?.wonRewards || []
+                  )
+                }
               />
             </motion.div>
           )}
