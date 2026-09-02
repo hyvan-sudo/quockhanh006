@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-paper: #F2ECE0;
+    --color-paper-light: #FAF6EE;
+    --color-paper-dark: #E6DECE;
+    --color-red: #C02026;
+    --color-red-deep: #9E1B1E;
+    --color-gold: #F9D64B;
+    --color-gold-deep: #E5A823;
+    --color-olive: #5A5A40;
+    --color-ink: #141414;
+    --color-ink-muted: #5A5A5A;
+  }
+
+  body {
+    font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #F2ECE0;
+    color: #141414;
+    position: relative;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Typography Utility Classes */
+.font-display {
+  font-family: 'Fraunces', 'Playfair Display', Georgia, serif;
+}
+
+.font-editorial {
+  font-family: 'Playfair Display', 'Spectral', serif;
+}
+
+.font-serif-vintage {
+  font-family: 'Spectral', Georgia, serif;
+}
+
+.font-sans-vn {
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-mono-retro {
+  font-family: 'Space Mono', monospace;
+}
+
+/* Bento Dot Grid Background Overlay */
+.bento-dot-grid {
+  background-image: radial-gradient(#141414 0.5px, transparent 0.5px);
+  background-size: 10px 10px;
+}
+
+/* Diagonal stripe texture for bento accent panels */
+.bento-stripes-red {
+  background-image: repeating-linear-gradient(45deg, #000 0, #000 1px, transparent 0, transparent 50%);
+  background-size: 10px 10px;
+}
+
+/* Custom Scrollbar for Bento Grid */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F2ECE0;
+  border-left: 1px solid #141414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #141414;
+  border-radius: 0px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C02026;
+}
+

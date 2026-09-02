@@ -1,0 +1,6 @@
+{
+  "name": "Gacha Quốc Khánh 2/9",
+  "description": "Interactive retro editorial web game and lucky spin experience celebrating Vietnam National Day September 2nd.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
