@@ -116,5 +116,6 @@ export interface GlobalGameState {
   rounds: RoundData[];
   discussion: RoomDiscussionState;
   gacha: RoomGachaState;
+  kickedPlayers?: Record<string, boolean>;
 }
 

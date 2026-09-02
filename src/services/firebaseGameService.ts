@@ -62,7 +62,28 @@ const DEFAULT_GAME_STATE: GlobalGameState = {
     currentResult: null,
     wonRewards: [],
   },
+  kickedPlayers: {},
 };
+
+/**
+ * Clear local session on kick / reset
+ */
+export function clearLocalPlayerSession(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(LOCAL_PLAYER_ID_KEY);
+    localStorage.removeItem(LOCAL_PLAYER_NAME_KEY);
+  }
+}
+
+/**
+ * Generate a fresh persistent player ID (e.g. after being kicked or new game)
+ */
+export function generateFreshLocalPlayerId(): string {
+  if (typeof window === 'undefined') return 'p_server';
+  const newId = `p_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  localStorage.setItem(LOCAL_PLAYER_ID_KEY, newId);
+  return newId;
+}
 
 /**
  * Get or create local persistent player ID
@@ -176,6 +197,11 @@ export function parseFirebaseGameState(rawData: any): GlobalGameState {
     discussionEndedAt: rawData.discussion?.discussionEndedAt || null,
   };
 
+  const kickedPlayersRecord: Record<string, boolean> =
+    rawData.kickedPlayers && typeof rawData.kickedPlayers === 'object'
+      ? rawData.kickedPlayers
+      : {};
+
   return {
     status: (rawData.status as GameStage) || 'join',
     hostId: rawData.hostId || (playersList.find((p) => p.isHost)?.id || ''),
@@ -185,6 +211,7 @@ export function parseFirebaseGameState(rawData: any): GlobalGameState {
     rounds: roundsList.length > 0 ? roundsList : ROUNDS_DATA,
     discussion: discussionState,
     gacha: gachaState,
+    kickedPlayers: kickedPlayersRecord,
   };
 }
 
@@ -266,15 +293,20 @@ export async function joinGameRealtime(playerName: string): Promise<{
   isHost: boolean;
 }> {
   const cleanName = playerName.trim().toUpperCase();
-  const playerId = getOrCreateLocalPlayerId();
+  let playerId = getOrCreateLocalPlayerId();
   setStoredLocalPlayerName(cleanName);
 
   if (db && isFirebaseConfigured) {
     const gameRef = ref(db, 'game');
-    const playersRef = ref(db, 'game/players');
-    const snapshot = await get(playersRef);
-    const existingPlayers = snapshot.val() || {};
+    const gameSnap = await get(gameRef);
+    const gameData = gameSnap.val() || {};
 
+    // If this player ID was previously kicked, generate a fresh player ID for re-joining
+    if (gameData.kickedPlayers?.[playerId]) {
+      playerId = generateFreshLocalPlayerId();
+    }
+
+    const existingPlayers = gameData.players || {};
     const existingKeys = Object.keys(existingPlayers);
     const isFirstPlayer = existingKeys.length === 0;
 
@@ -297,8 +329,7 @@ export async function joinGameRealtime(playerName: string): Promise<{
     await set(playerRef, newPlayerRecord);
 
     // If first player or no host exists, set hostId in game
-    const gameSnap = await get(gameRef);
-    const currentHostId = gameSnap.val()?.hostId;
+    const currentHostId = gameData.hostId;
     if (!currentHostId || isFirstPlayer) {
       await update(gameRef, {
         hostId: playerId,
@@ -317,6 +348,10 @@ export async function joinGameRealtime(playerName: string): Promise<{
 
   // Local fallback
   const localState = getStoredGameState();
+  if (localState.kickedPlayers?.[playerId]) {
+    playerId = generateFreshLocalPlayerId();
+  }
+
   const isFirst = localState.players.length === 0;
   let players = [...localState.players];
   const existingIdx = players.findIndex((p) => p.id === playerId || p.name === cleanName);
@@ -454,9 +489,79 @@ export async function addBotPlayerRealtime(currentCount: number): Promise<void> 
 }
 
 /**
- * Remove player from lobby
+ * Host kicks / removes a player from the lobby
+ * Validates that the caller is the host and the game status is 'lobby'
  */
-export async function removePlayerRealtime(playerId: string): Promise<void> {
+export async function kickPlayerRealtime(
+  hostPlayerId: string,
+  targetPlayerId: string
+): Promise<{ success: boolean; message?: string }> {
+  if (targetPlayerId === hostPlayerId) {
+    return { success: false, message: 'Chủ phòng không thể tự xóa chính mình' };
+  }
+
+  if (db && isFirebaseConfigured) {
+    const gameRef = ref(db, 'game');
+    const snapshot = await get(gameRef);
+    if (!snapshot.exists()) {
+      return { success: false, message: 'Không tìm thấy dữ liệu phòng' };
+    }
+    const gameData = snapshot.val();
+
+    // Security check: Only host can kick
+    if (gameData.hostId !== hostPlayerId) {
+      console.warn('Unauthorized kick attempt: caller is not host', hostPlayerId, gameData.hostId);
+      return { success: false, message: 'Chỉ chủ phòng mới có quyền xóa người chơi' };
+    }
+
+    // Security check: Can only kick in lobby
+    if (gameData.status && gameData.status !== 'lobby') {
+      console.warn('Kick not allowed: game is in stage', gameData.status);
+      return { success: false, message: 'Chỉ có thể xóa người chơi trong sảnh chờ' };
+    }
+
+    const updates: Record<string, any> = {};
+    updates[`players/${targetPlayerId}`] = null;
+    updates[`kickedPlayers/${targetPlayerId}`] = true;
+    await update(gameRef, updates);
+
+    return { success: true };
+  }
+
+  // Local fallback
+  const localState = getStoredGameState();
+  if (localState.hostId && localState.hostId !== hostPlayerId) {
+    return { success: false, message: 'Chỉ chủ phòng mới có quyền xóa người chơi' };
+  }
+  if (localState.status !== 'lobby') {
+    return { success: false, message: 'Chỉ có thể xóa người chơi trong sảnh chờ' };
+  }
+
+  const filtered = localState.players.filter((p) => p.id !== targetPlayerId);
+  const renumbered = filtered.map((p, idx) => ({
+    ...p,
+    number: (idx + 1).toString().padStart(2, '0'),
+  }));
+
+  const kicked = { ...(localState.kickedPlayers || {}), [targetPlayerId]: true };
+  const updatedState: GlobalGameState = {
+    ...localState,
+    players: renumbered,
+    kickedPlayers: kicked,
+  };
+  saveLocalFallbackState(updatedState);
+  return { success: true };
+}
+
+/**
+ * Remove player from lobby (helper wrapper)
+ */
+export async function removePlayerRealtime(playerId: string, hostPlayerId?: string): Promise<void> {
+  if (hostPlayerId) {
+    await kickPlayerRealtime(hostPlayerId, playerId);
+    return;
+  }
+
   if (db && isFirebaseConfigured) {
     const playerRef = ref(db, `game/players/${playerId}`);
     await set(playerRef, null);

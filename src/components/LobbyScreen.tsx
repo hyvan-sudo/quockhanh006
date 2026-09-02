@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserPlus, Users, Crown, CheckCircle2, Clock, AlertTriangle, X, Check } from 'lucide-react';
+import { UserPlus, Users, Crown, CheckCircle2, Clock, AlertTriangle, X, Check, UserX } from 'lucide-react';
 import { Player } from '../types';
 import { sound } from '../utils/audio';
 import { StampSeal29, TricolorBar, VietnamStar } from './DecorativeElements';
@@ -10,6 +10,7 @@ interface LobbyScreenProps {
   onStartGame: () => void;
   onAddBot: () => void;
   onRemoveBot?: (id: string) => void;
+  onKickPlayer?: (playerId: string) => void;
   onToggleReady: () => void;
   onUpdateUserName: (name: string) => void;
   userName: string;
@@ -23,6 +24,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
   onStartGame,
   onAddBot,
   onRemoveBot,
+  onKickPlayer,
   onToggleReady,
   onUpdateUserName,
   userName,
@@ -33,6 +35,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName);
   const [showUnreadyModal, setShowUnreadyModal] = useState(false);
+  const [playerToKick, setPlayerToKick] = useState<{ id: string; name: string } | null>(null);
 
   const isUserReady = currentUserPlayer?.isReady ?? true;
   const unreadyPlayers = players.filter((p) => !p.isReady);
@@ -218,15 +221,6 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
                           BẠN
                         </span>
                       )}
-                      {!p.isUser && onRemoveBot && players.length > 2 && (
-                        <button
-                          onClick={() => onRemoveBot(p.id)}
-                          title="Xóa người chơi này"
-                          className="text-[#141414]/40 hover:text-[#C02026] p-0.5 transition-colors cursor-pointer"
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -246,17 +240,33 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
                     )}
                   </div>
 
-                  {/* Card Bottom: Ready Status Badge */}
-                  <div className="pt-2 border-t border-[#141414]/15 flex items-center justify-between font-mono text-[10px]">
-                    <span className="text-[#141414]/60 uppercase">TRẠNG THÁI:</span>
-                    {p.isReady ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-800 text-white font-bold uppercase text-[9px]">
-                        <Check size={10} /> SẴN SÀNG
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#141414]/10 text-[#141414]/70 font-bold uppercase text-[9px]">
-                        ● ĐANG CHỜ
-                      </span>
+                  {/* Card Bottom: Ready Status Badge & Host Kick Button */}
+                  <div className="pt-2 border-t border-[#141414]/15 flex items-center justify-between font-mono text-[10px] gap-1">
+                    <div className="flex items-center gap-1 min-w-0">
+                      {p.isReady ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-800 text-white font-bold uppercase text-[9px] truncate">
+                          <Check size={10} className="shrink-0" /> SẴN SÀNG
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#141414]/10 text-[#141414]/70 font-bold uppercase text-[9px] truncate">
+                          ● CHƯA SẴN SÀNG
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Host Kick Button - Only visible to Host, and never for Host themselves */}
+                    {isHost && !p.isHost && (
+                      <button
+                        id={`lobby-kick-btn-${p.id}`}
+                        onClick={() => {
+                          sound.playTick(400);
+                          setPlayerToKick({ id: p.id, name: p.name });
+                        }}
+                        className="px-2 py-0.5 bg-[#FAF6EE] text-[#C02026] hover:bg-[#C02026] hover:text-white font-mono text-[9px] font-bold uppercase tracking-wider border border-[#C02026] transition-colors cursor-pointer shrink-0"
+                        title={`Xóa ${p.name} khỏi phòng`}
+                      >
+                        [XÓA]
+                      </button>
                     )}
                   </div>
                 </motion.div>
@@ -385,6 +395,65 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
                   className="px-5 py-2 bg-[#C02026] text-white font-mono text-xs font-bold uppercase border border-[#141414] hover:bg-[#141414] transition-colors shadow-sm cursor-pointer"
                 >
                   VẪN BẮT ĐẦU →
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation Modal when Host clicks [XÓA] on a player */}
+      <AnimatePresence>
+        {playerToKick && (
+          <div className="fixed inset-0 bg-[#141414]/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm bg-[#FAF6EE] border-2 border-[#141414] shadow-2xl divide-y-2 divide-[#141414] overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="p-4 bg-[#F2ECE0] flex items-center gap-2.5">
+                <UserX size={20} className="text-[#C02026] shrink-0" />
+                <h3 className="font-display font-black text-base text-[#141414] uppercase">
+                  XÁC NHẬN XÓA NGƯỜI CHƠI
+                </h3>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 bg-[#FAF6EE] text-center space-y-3">
+                <p className="font-serif-vintage italic text-base text-[#141414]">
+                  "Xóa <strong className="text-[#C02026] not-italic font-bold">{playerToKick.name}</strong> khỏi phòng?"
+                </p>
+                <p className="font-mono text-[11px] text-[#141414]/70">
+                  Người chơi này sẽ bị loại khỏi sảnh chờ ngay lập tức và không thể tiếp tục ván đấu này.
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="p-3.5 bg-[#F2ECE0] flex items-center justify-end gap-2.5">
+                <button
+                  id="cancel-kick-button"
+                  onClick={() => {
+                    sound.playTick(500);
+                    setPlayerToKick(null);
+                  }}
+                  className="px-4 py-2 bg-[#FAF6EE] text-[#141414] font-mono text-xs font-bold uppercase border border-[#141414] hover:bg-[#E6DECE] transition-colors cursor-pointer"
+                >
+                  HỦY
+                </button>
+                <button
+                  id="confirm-kick-button"
+                  onClick={() => {
+                    if (playerToKick && onKickPlayer) {
+                      sound.playStamp();
+                      onKickPlayer(playerToKick.id);
+                      setPlayerToKick(null);
+                    }
+                  }}
+                  className="px-5 py-2 bg-[#C02026] text-white font-mono text-xs font-bold uppercase border border-[#141414] hover:bg-[#141414] transition-colors shadow-xs cursor-pointer"
+                >
+                  XÓA
                 </button>
               </div>
             </motion.div>
