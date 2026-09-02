@@ -147,7 +147,7 @@ export default function App() {
     await startGameHostRealtime(enrichedPlayers);
   };
 
-  // Add bot player for testing / completing players
+  // Add test bot player for testing / completing players
   const handleAddBot = async () => {
     await addBotPlayerRealtime(enrichedPlayers.length);
   };
@@ -221,7 +221,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FAF6EE] text-[#141414] relative paper-texture-subtle flex flex-col justify-between selection:bg-[#C02026] selection:text-white">
-      {/* Editorial Sticky Header */}
       <Header
         currentStage={activeStage}
         onNavigate={handleStageChange}
@@ -231,7 +230,6 @@ export default function App() {
         onResetGame={handleResetGame}
       />
 
-      {/* Realtime Database Connection Notice Badge (if local fallback) */}
       {!isFirebaseConfigured && (
         <div className="bg-[#FAF6EE] border-b border-[#141414] py-1 px-3 text-center font-mono text-[10px] text-[#141414]/80 flex items-center justify-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -241,33 +239,16 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Screen Transition Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
         <AnimatePresence mode="wait">
           {activeStage === 'join' && (
-            <motion.div
-              key="join"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.3 }}
-            >
-              <JoinScreen
-                playerCount={enrichedPlayers.length}
-                maxPlayers={gameState.maxPlayers || 8}
-                onJoinGame={handleJoinGame}
-              />
+            <motion.div key="join" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.3 }}>
+              <JoinScreen playerCount={enrichedPlayers.length} maxPlayers={gameState.maxPlayers || 8} onJoinGame={handleJoinGame} />
             </motion.div>
           )}
 
           {activeStage === 'lobby' && (
-            <motion.div
-              key="lobby"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="lobby" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
               <LobbyScreen
                 players={enrichedPlayers}
                 userName={userName || userPlayer.name}
@@ -284,13 +265,7 @@ export default function App() {
           )}
 
           {activeStage === 'keyword_reveal' && (
-            <motion.div
-              key="keyword_reveal"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="keyword_reveal" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
               <GameKeywordScreen
                 round={currentRound}
                 totalRounds={totalRoundsCount}
@@ -302,19 +277,14 @@ export default function App() {
           )}
 
           {activeStage === 'answer_input' && (
-            <motion.div
-              key="answer_input"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="answer_input" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
               <AnswerInputScreen
+                key={`answer-input-round-${currentRoundIndex}`}
                 round={currentRound}
                 totalRounds={totalRoundsCount}
                 userPlayer={userPlayer}
                 playersCount={enrichedPlayers.length}
-                existingAnswer={userPlayer.answer || userAnswer}
+                existingAnswer={userPlayer.answer}
                 onSubmitAnswer={handleSubmitAnswer}
                 onProceedToReveal={() => setGameStageRealtime('discussion')}
               />
@@ -322,13 +292,7 @@ export default function App() {
           )}
 
           {(activeStage === 'reveal_answers' || activeStage === 'discussion') && (
-            <motion.div
-              key="discussion"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="discussion" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.3 }}>
               <DiscussionScreen
                 round={currentRound}
                 totalRounds={totalRoundsCount}
@@ -342,94 +306,40 @@ export default function App() {
           )}
 
           {activeStage === 'voting' && (
-            <motion.div
-              key="voting"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-            >
-              <VotingScreen
-                round={currentRound}
-                totalRounds={totalRoundsCount}
-                players={enrichedPlayers}
-                userPlayer={userPlayer}
-                onCastVote={handleCastVote}
-              />
+            <motion.div key="voting" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
+              <VotingScreen round={currentRound} totalRounds={totalRoundsCount} players={enrichedPlayers} userPlayer={userPlayer} onCastVote={handleCastVote} />
             </motion.div>
           )}
 
           {activeStage === 'reveal_impostor' && (
-            <motion.div
-              key="reveal_impostor"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <RevealImpostorScreen
-                round={currentRound}
-                totalRounds={totalRoundsCount}
-                players={enrichedPlayers}
-                impostorPlayer={impostorPlayer}
-                onProceedToScoreboard={() => setGameStageRealtime('scoreboard')}
-              />
+            <motion.div key="reveal_impostor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <RevealImpostorScreen round={currentRound} totalRounds={totalRoundsCount} players={enrichedPlayers} impostorPlayer={impostorPlayer} onProceedToScoreboard={() => setGameStageRealtime('scoreboard')} />
             </motion.div>
           )}
 
           {activeStage === 'scoreboard' && (
-            <motion.div
-              key="scoreboard"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="scoreboard" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
               <ScoreboardScreen
                 round={currentRound}
                 totalRounds={totalRoundsCount}
                 players={enrichedPlayers}
                 onNextRound={handleNextRound}
-                onGoToFinalRanking={() =>
-                  advanceNextRoundOrRankingRealtime(
-                    totalRoundsCount - 1,
-                    totalRoundsCount,
-                    enrichedPlayers,
-                    gameState.gacha?.wonRewards || []
-                  )
-                }
+                onGoToFinalRanking={() => advanceNextRoundOrRankingRealtime(totalRoundsCount - 1, totalRoundsCount, enrichedPlayers, gameState.gacha?.wonRewards || [])}
               />
             </motion.div>
           )}
 
           {activeStage === 'final_ranking' && (
-            <motion.div
-              key="final_ranking"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.4 }}
-            >
+            <motion.div key="final_ranking" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.4 }}>
               <FinalRankingScreen
                 players={enrichedPlayers}
-                onGoToGacha={() =>
-                  initializeGachaSessionRealtime(
-                    enrichedPlayers,
-                    gameState.gacha?.wonRewards || []
-                  )
-                }
+                onGoToGacha={() => initializeGachaSessionRealtime(enrichedPlayers, gameState.gacha?.wonRewards || [])}
               />
             </motion.div>
           )}
 
           {activeStage === 'gacha' && (
-            <motion.div
-              key="gacha"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.4 }}
-            >
+            <motion.div key="gacha" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.4 }}>
               <GachaWheelScreen
                 players={enrichedPlayers}
                 userPlayer={userPlayer}
@@ -474,25 +384,17 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Editorial Footer */}
       <footer className="border-t-2 border-[#141414] py-4 px-4 text-center font-mono text-[11px] text-[#141414]/75 max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2 font-bold text-[#C02026]">
           <span>★ 02.09.1945 — 02.09.2026</span>
           <span className="text-[#141414]/30 font-normal">|</span>
           <span className="text-[#141414]">KỶ NIỆM 81 NĂM QUỐC KHÁNH VIỆT NAM</span>
         </div>
-        <div>
-          TRÒ CHƠI TƯƠNG TÁC PHONG CÁCH BÁO CHÍ RETRO & GACHA MAY MẮN
-        </div>
+        <div>TRÒ CHƠI TƯƠNG TÁC PHONG CÁCH BÁO CHÍ RETRO & GACHA MAY MẮN</div>
       </footer>
 
-      {/* Auxiliary Modals */}
       <RulesGuideModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
-      <VoucherHistoryModal
-        isOpen={isVouchersOpen}
-        onClose={() => setIsVouchersOpen(false)}
-        rewards={gameState.gacha?.wonRewards || []}
-      />
+      <VoucherHistoryModal isOpen={isVouchersOpen} onClose={() => setIsVouchersOpen(false)} rewards={gameState.gacha?.wonRewards || []} />
     </div>
   );
 }
